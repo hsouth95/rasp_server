@@ -1,0 +1,11 @@
+rasp_server.egg-info
+ptvs_virtualenv_proxy.py
+web.debug.config
+rasp_server/__pycache__/
+__pycache__/
+bin/
+env/
+obj/
+**/*.pyc
+
+**/*.db
