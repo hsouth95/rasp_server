@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from models import User
+import inspect
 
 from flask import Flask, g, request
 app = Flask(__name__)
@@ -16,6 +16,16 @@ app.config.update(dict(
 ))
 
 app.config.from_envvar('RASP_SERVER_SETTINGS', silent=True)
+
+class Entity():
+    def get_attributes(self):
+        return inspect.getmembers(self)
+
+class User(Entity):
+    """A basic User class."""
+    def __init__(self, nickname):
+        self.nickname = nickname
+
 
 def connect_db():
     """Connects to the rasp_server database."""
@@ -54,8 +64,8 @@ connections = []
 @app.route('/hello')
 def hello():
 	"""Handler for API discovery"""
-	#user = User("batman")
-	return "apple"
+	user = User("batman")
+    return ". ".join(user.get_attributes())
 
 @app.route('/user', methods=["POST"])
 def get_user_key():
