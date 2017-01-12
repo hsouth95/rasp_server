@@ -1,5 +1,5 @@
 drop table if exists users;
 create table users (
-	user_key varchar primary key,
+	user_key integer primary key,
 	nickname varchar not null
 )
