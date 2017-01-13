@@ -22,6 +22,7 @@ class User:
     """A basic User class."""
     def __init__(self, nickname):
         self.nickname = nickname
+        self.user_key = None
 
     def create(self, db):
         """Create the User in the given database.
@@ -35,7 +36,21 @@ class User:
         cursor = db.cursor()
         try:
             cursor.execute("insert into users (nickname) values (?)", [self.nickname])
-            return cursor.lastrowid
+            db.commit()
+            self.user_key = cursor.lastrowid
+            return self.user_key
+        except sqlite3.Error as er:
+            raise er
+
+    def update(self, db):
+        """Updates the User in the given database
+
+            Args:
+                db: Database object used to execute the command
+        """
+        cursor = db.cursor()
+        try:
+            cursor.execute("update users set nickname = ? where user_key = ?", [self.nickname, self.user_key])
         except sqlite3.Error as er:
             raise er
 
@@ -54,6 +69,24 @@ class User:
 
             if user:
                 return dict(user)
+            return None
+        except sqlite3.Error as er:
+            raise er
+
+    @staticmethod
+    def list(db):
+        """Retrieves the nicknames of all the User's
+
+            Args:
+                db: Database object used to execute the command
+        """
+        cursor = db.cursor()
+        try:
+            cursor.execute("select nickname from users")
+            users = cursor.fetchall()
+
+            if users:
+                return map(dict, users)
             return None
         except sqlite3.Error as er:
             raise er
@@ -96,8 +129,6 @@ def initdb_command():
     init_db()
     print("Initialised the database.")
 
-connections = []
-
 
 @app.route('/hello')
 def hello():
@@ -106,7 +137,7 @@ def hello():
 
 
 @app.route('/user', methods=["POST"])
-def get_user_key():
+def create_user():
     """Handler for retrieving a new User key"""
     user_nickname = request.values.get("nickname")
     if user_nickname:
@@ -122,16 +153,44 @@ def get_user_key():
         return "Nickname must be provided", 400
 
 
+@app.route('/user', methods=["GET"])
+def list_users():
+    """Handler for retrieving all Users"""
+    try:
+        users = User.list(get_db())
+
+        if users:
+            return json.dumps(users)
+        return json.dumps([])
+    except sqlite3.Error as er:
+        return er.message, 500
+
+
 @app.route('/user/<key>')
 def get_user(key):
     """Handler for retrieving User information"""
-    connections.append(key)
     user = User.get(key, get_db())
 
     if user:
         return json.dumps(user)
     return "Cannot find User", 404
 
+
+@app.route('/user/<key>', methods=["PUT"])
+def update_user(key):
+    user_nickname = request.values.get("nickname")
+
+    if user_nickname:
+        user = User(user_nickname)
+        user.user_key = key
+
+        try:
+            user.update(get_db())
+
+            return "Successful", 200
+        except sqlite3 as er:
+            return er.message, 500
+    return "Nickname must be provided", 400
 
 if __name__ == '__main__':
     app.run()
