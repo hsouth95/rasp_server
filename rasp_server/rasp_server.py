@@ -21,8 +21,10 @@ app.config.from_envvar('RASP_SERVER_SETTINGS', silent=True)
 class User:
     """A basic User class."""
     def __init__(self, nickname):
-        self.nickname = nickname
         self.user_key = None
+        self.nickname = nickname
+        self.permissions = None
+        self.picture = None
 
     def create(self, db):
         """Create the User in the given database.
@@ -31,11 +33,18 @@ class User:
                 db: Database object used to execute the command
             Note:
                 Any operations stay within a transaction, therefore
-                the given Database object will need to be committed
+                the given Database object will need to be committed.
+                This operation will create the User as having all
+                permissions if it is the first User to be created.
         """
+        # Check if this is the first User being created
+        if User.get(1, db) == None:
+            self.permissions = "su"
+        else:
+            self.permissions = "r"
         cursor = db.cursor()
         try:
-            cursor.execute("insert into users (nickname) values (?)", [self.nickname])
+            cursor.execute("insert into users (nickname, picture, permissions) values (?, ?, ?)", [self.nickname, self.picture, self.permissions])
             db.commit()
             self.user_key = cursor.lastrowid
             return self.user_key
@@ -145,8 +154,8 @@ def create_user():
         db = get_db()
         try:
             user_id = user.create(db)
-        except:
-            return "Error creating User", 500
+        except sqlite3.Error as err:
+            return err.message, 500
         db.commit()
         return str(user_id)
     else:

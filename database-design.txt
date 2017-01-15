@@ -1,0 +1,9 @@
+Home - is this necessary?
+-name (PK?)
+-users[]
+--------
+User
+-user_key
+-nickname
+-permissions (check at least one member has full access)
+-picture (upload to imgur?)
