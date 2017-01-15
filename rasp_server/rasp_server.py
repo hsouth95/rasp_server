@@ -3,6 +3,7 @@ import sqlite3
 import json
 
 from flask import Flask, g, request
+from functools import wraps
 app = Flask(__name__)
 
 # Load config from this file
@@ -17,7 +18,16 @@ app.config.update(dict(
 
 app.config.from_envvar('RASP_SERVER_SETTINGS', silent=True)
 
-
+def authorise(permissions):
+    def real_decorator(func):
+        def wrapper(*args, **kwargs):
+            auth = request.authorization
+            if not auth.username or User.get(auth.username, get_db())["permissions"] != permissions:
+                return "Auth failed", 401
+            return func(*args, **kwargs)
+        return wrapper
+    return real_decorator
+    
 class User:
     """A basic User class."""
     def __init__(self, nickname):
@@ -200,6 +210,13 @@ def update_user(key):
         except sqlite3 as er:
             return er.message, 500
     return "Nickname must be provided", 400
+
+@app.route('/user/<key>', methods=["DELETE"])
+@authorise("su")
+def delete_user(key):
+    # The first User can never be deleted
+    if key != 1:
+        return str(key)
 
 if __name__ == '__main__':
     app.run()
