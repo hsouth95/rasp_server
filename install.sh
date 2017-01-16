@@ -1,6 +1,7 @@
 #! /bin/bash
 
 echo "Running installer"
+sudo apt-get install sqlite3
 sudo pip install -e .
 sudo pip install flask --upgrade
 echo "Creating Home...."
