@@ -1,9 +1,18 @@
 Home - is this necessary?
 -name (PK?)
--users[]
 --------
 User
 -user_key
 -nickname
+-home
 -permissions (check at least one member has full access)
 -picture (upload to imgur?)
+-------
+Rotation
+-rotation_key
+-name
+-next
+------
+RotationUser
+-rotation_key
+-user_key

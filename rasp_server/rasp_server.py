@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import json
+import models
 
 from flask import Flask, g, request
 from functools import wraps
@@ -18,16 +19,38 @@ app.config.update(dict(
 
 app.config.from_envvar('RASP_SERVER_SETTINGS', silent=True)
 
+def get_home():
+    db = get_db()
+    cursor = db.cursor()
+
+    try:
+        cursor.execute("select * from home limit 1")
+        house = cursor.fetchone()
+
+        if house:
+            return dict(house)
+        return None
+    except sqlite3.Error as err:
+        raise err
+
 def authorise(permissions):
     def real_decorator(func):
         def wrapper(*args, **kwargs):
             auth = request.authorization
-            if not auth.username or User.get(auth.username, get_db())["permissions"] != permissions:
+            if not auth.username or is_authorised(permissions, auth.username):
                 return "Auth failed", 401
             return func(*args, **kwargs)
         return wrapper
     return real_decorator
-    
+
+def is_authorised(permission_required, user_key):
+    user = User.get(user_key, get_db())
+    if user:
+        permission = user["permissions"]
+        if permission == permission_required or permission == "su" or (permission == "w" and permission_required == "r"):
+            return True
+    return False
+
 class User:
     """A basic User class."""
     def __init__(self, nickname):
@@ -35,6 +58,7 @@ class User:
         self.nickname = nickname
         self.permissions = None
         self.picture = None
+        self.home = get_home()["id"]
 
     def create(self, db):
         """Create the User in the given database.
@@ -54,7 +78,7 @@ class User:
             self.permissions = "r"
         cursor = db.cursor()
         try:
-            cursor.execute("insert into users (nickname, picture, permissions) values (?, ?, ?)", [self.nickname, self.picture, self.permissions])
+            cursor.execute("insert into users (nickname, picture, permissions, home) values (?, ?, ?, ?)", [self.nickname, self.picture, self.permissions, self.home])
             db.commit()
             self.user_key = cursor.lastrowid
             return self.user_key
@@ -110,7 +134,31 @@ class User:
         except sqlite3.Error as er:
             raise er
 
+class Rotation:
+    def __init__(self, name):
+        self.name = name
+        self.rotation_key = None
+    
+    def create(self, db):
+        # Check if this is the first User being created
+        cursor = db.cursor()
+        try:
+            cursor.execute("insert into rotation (name) values (?)", [self.name])
+            db.commit()
+            self.rotation_key = cursor.lastrowid
+            return self.rotation_key
+        except sqlite3.Error as er:
+            raise er
 
+class Rotation_User:
+    def create(self, user_key, rotation_key, db):
+        cursor = db.cursor()
+        try:
+            cursor.execute("insert into rotationuser (rotation_key, user_key) values (?, ?)", [rotation_key, user_key])
+            db.commit()
+        except sqlite3.Error as err:
+            raise err
+            
 def connect_db():
     """Connects to the rasp_server database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -217,6 +265,10 @@ def delete_user(key):
     # The first User can never be deleted
     if key != 1:
         return str(key)
+
+@app.route('/home', methods=["GET"])
+def list_home():
+    return json.dumps(get_home())
 
 if __name__ == '__main__':
     app.run()
