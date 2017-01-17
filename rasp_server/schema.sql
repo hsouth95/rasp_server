@@ -20,5 +20,6 @@ create table rotation (
 );
 create table rotationuser (
 	rotation references rotation(rotation_key) not null,
-	user references users(user_key) not null
+	user references users(user_key) not null,
+	sort_order integer not null
 );

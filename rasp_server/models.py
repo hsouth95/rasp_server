@@ -98,12 +98,48 @@ class Rotation:
             return self.rotation_key
         except sqlite3.Error as er:
             raise er
+    @staticmethod
+    def get(key, db):
+        cursor = db.cursor()
+        rotation = cursor.execute("select * from rotation where rotation_key = ?", [key]).fetchone()
+        return dict(rotation)
+    
+    @staticmethod
+    def set_next(key, db):
+        # get current order
+        # get next rot_user
+        cursor = db.cursor()
+        rotation = dict(cursor.execute("select * from rotation where rotation_key = ?", [key]).fetchone())
+        if rotation:
+            previous_person = rotation["next"]
+            if previous_person:
+                cursor.execute("update rotation set next = ?", [Rotation_User.get_next_user_key(previous_person, key, db)])
+                db.commit()
+
 
 class Rotation_User:
     def create(self, user_key, rotation_key, db):
         cursor = db.cursor()
         try:
-            cursor.execute("insert into rotationuser (rotation_key, user_key) values (?, ?)", [rotation_key, user_key])
+            cursor.execute("insert into rotationuser (rotation, user) values (?, ?)", [rotation_key, user_key])
             db.commit()
         except sqlite3.Error as err:
             raise err
+    
+    @staticmethod
+    def get_by_rotation(rotation_key, db):
+        cursor = db.cursor()
+        return map(dict, cursor.execute("select * from rotationuser where rotation = ?", [rotation_key]).fetchall())
+    
+    @staticmethod
+    def get_by_user(user_key, db):
+        cursor = db.cursor()
+        return map(dict, cursor.execute("select * from rotationuser where user = ?", [user_key]).fetchall())
+
+    @staticmethod
+    def get_next_user_key(previous_user, rotation_key, db):
+        cursor = db.cursor()
+        next_user = cursor.execute("select user from rotationuser where rotation = %s and sort_order = (select MAX(sort_order) from rotationuser where user = ?) + 1" % rotation_key, [previous_user]).fetchone()
+        if next_user:
+            return dict(next_user)["user"]
+        return 1

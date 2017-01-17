@@ -163,5 +163,15 @@ def delete_user(key):
 def list_home():
     return json.dumps(get_home())
 
+@app.route("/rotation/<key>", methods=["GET"])
+def get_rotation(key):
+    rotation = Rotation.get(key, get_db())
+    return json.dumps(rotation)
+
+@app.route("/rotation/<key>/setnext", methods=["POST"])
+def set_next_rotation(key):
+    Rotation.set_next(key, get_db())
+    return "Success!", 200
+
 if __name__ == '__main__':
     app.run()
