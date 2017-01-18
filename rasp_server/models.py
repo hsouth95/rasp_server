@@ -21,12 +21,10 @@ class Home:
         cursor = db.cursor()
         try:
             cursor.execute("select id, name from home")
-            retrieved_homes = map(dict, cursor.fetchall())
-            homes = []
-            for item in retrieved_homes:
-                homes.append(Home(**item))
-            return homes
+            retrieved_homes = cursor.fetchall()
             
+            if retrieved_homes:
+                return [Home(**item) for item in map(dict, retrieved_homes)]
         except sqlite3.Error:
             raise
     
@@ -35,8 +33,11 @@ class Home:
         cursor = db.cursor()
         try:
             cursor.execute("select id, name from home where id = ?", [key])
-            home = dict(cursor.fetchone())
-            return Home(**home)
+            home = cursor.fetchone()
+            
+            if home:
+                home = dict(home)
+                return Home(**home)
         except sqlite3.Error:
             raise
     
@@ -45,8 +46,10 @@ class Home:
         cursor = db.cursor()
         try:
             cursor.execute("select password from home where id = ?", [key])
-            home = cursor.fetchone()
-            return dict(home)["password"] == password
+            retrieved_home = cursor.fetchone()
+            if retrieved_home:
+                home = dict(retrieved_home)
+                return home["password"] == password
         except sqlite3.Error:
             raise
 
@@ -93,6 +96,7 @@ class User:
         cursor = db.cursor()
         try:
             cursor.execute("update users set nickname = ? where user_key = ?", [self.nickname, self.user_key])
+            db.commit()
         except sqlite3.Error as er:
             raise er
     
@@ -116,9 +120,10 @@ class User:
         cursor = db.cursor()
         try:
             cursor.execute("select * from users where user_key = ?", [key])
-            user = dict(cursor.fetchone())
+            user = cursor.fetchone()
 
             if user:
+                user = dict(user)
                 return User(**user)
             return None
         except sqlite3.Error as er:
@@ -134,9 +139,11 @@ class User:
         cursor = db.cursor()
         try:
             cursor.execute("select nickname from users")
-            users = map(dict, cursor.fetchall())
+            retrieved_users = cursor.fetchall()
 
-            if users:
+            if retrieved_users:
+                users = map(dict, retrieved_users)
+
                 return [User(**item) for item in users]
             return None
         except sqlite3.Error as er:
@@ -160,7 +167,8 @@ class Rotation:
     @staticmethod
     def get(key, db):
         cursor = db.cursor()
-        rotation = cursor.execute("select * from rotation where rotation_key = ?", [key]).fetchone()
+        cursor.execute("select * from rotation where rotation_key = ?", [key])
+        rotation = cursor.fetchone()
         return Rotation(**dict(rotation))
     
     @staticmethod

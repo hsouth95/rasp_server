@@ -20,20 +20,6 @@ app.config.from_envvar('RASP_SERVER_SETTINGS', silent=True)
 
 from models import *
 
-def get_home():
-    db = get_db()
-    cursor = db.cursor()
-
-    try:
-        cursor.execute("select * from home")
-        house = cursor.fetchall()
-
-        if house:
-            return dict(house)
-        return None
-    except sqlite3.Error as err:
-        raise err
-
 def authorise(permissions):
     def real_decorator(func):
         @wraps(func)
@@ -133,7 +119,7 @@ def get_user(key):
     user = User.get(key, get_db())
 
     if user:
-        return json.dumps(user.to_dict())
+        return json.dumps(user.__dict__)
     return "Cannot find User", 404
 
 
@@ -142,9 +128,7 @@ def update_user(key):
     user_nickname = request.values.get("nickname")
 
     if user_nickname:
-        user = User(user_nickname)
-        user.user_key = key
-
+        user = User(nickname=user_nickname, user_key=key)
         try:
             user.update(get_db())
 
@@ -158,13 +142,18 @@ def set_user_home(key):
     password = request.values.get("password")
     home = request.values.get("home_id")
 
+    if not password or not home:
+        return "Password or home not supplied", 400
+
     user = User.get(key, get_db())
-    if user.add_to_home(home, password, get_db()):
-        return "Success", 200
-    return "Password did not match", 400
+    if user:
+        if user.add_to_home(home, password, get_db()):
+            return "Success", 200
+        return "Password did not match", 400
+    return "User not found", 404
 
 @app.route('/user/<key>', methods=["DELETE"])
-#@authorise("su")
+@authorise("su")
 def delete_user(key):
     # The first User can never be deleted
     if key != 1:
@@ -172,18 +161,25 @@ def delete_user(key):
 
 @app.route('/home', methods=["GET"])
 def list_home():
-    return json.dumps(Home.list(get_db()))
+    homes = Home.list(get_db())
+    if homes:
+        return json.dumps([item.__dict__ for item in homes])
+    return json.dumps([])
 
 @app.route('/home/<key>', methods=["GET"])
 def home_get(key):
-    return json.dumps(Home.get(key, get_db()))
+    home = Home.get(key, get_db())
+
+    if home:
+        return json.dumps(home.__dict__)
+    return "No Home with that ID", 404
 
 @app.route('/home', methods=["POST"])
 #@authorise("su")
 def create_home():
     name = request.values.get("name")
     password = request.values.get("password")
-    home = Home(name, password)
+    home = Home(name=name, password=password)
     id = home.create(get_db())
 
     return str(id)
@@ -191,7 +187,7 @@ def create_home():
 @app.route("/rotation/<key>", methods=["GET"])
 def get_rotation(key):
     rotation = Rotation.get(key, get_db())
-    return json.dumps(rotation)
+    return json.dumps(rotation.__dict__)
 
 @app.route("/rotation/<key>/setnext", methods=["POST"])
 def set_next_rotation(key):
