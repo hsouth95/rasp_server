@@ -4,14 +4,15 @@ drop table if exists rotation;
 drop table if exists rotationuser;
 create table home (
 	id integer primary key,
-	name varchar not null
+	name varchar not null,
+	password varchar not null
 );
 create table users (
 	user_key integer primary key,
 	nickname varchar unique not null,
 	permissions varchar default 'r' not null,
 	picture varchar,
-	home references home(id) not null
+	home references home(id)
 );
 create table rotation (
 	rotation_key integer primary key,

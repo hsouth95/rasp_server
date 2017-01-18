@@ -1,13 +1,59 @@
 import sqlite3
 
+class Home:
+    def __init__(self, name, password):
+        self.name = name
+        self.password = password
+        self.id = None
+
+    def create(self, db):
+        cursor = db.cursor()
+        try:
+            cursor.execute("insert into home (name, password) values(?, ?)", [self.name, self.password])
+            db.commit()
+            self.id = cursor.lastrowid
+            return self.id
+        except sqlite3.Error as er:
+            raise er
+    
+    @staticmethod
+    def list(db):
+        cursor = db.cursor()
+        try:
+            cursor.execute("select id, name from home")
+            homes = cursor.fetchall()
+            return map(dict, homes)
+        except sqlite3.Error:
+            raise
+    
+    @staticmethod
+    def get(key, db):
+        cursor = db.cursor()
+        try:
+            cursor.execute("select id, name from home where id = ?", [key])
+            home = cursor.fetchone()
+            return dict(home)
+        except sqlite3.Error:
+            raise
+    
+    @staticmethod
+    def check_password(key, password, db):
+        cursor = db.cursor()
+        try:
+            cursor.execute("select password from home where id = ?", [key])
+            home = cursor.fetchone()
+            return dict(home)["password"] == password
+        except sqlite3.Error:
+            raise
+
 class User:
     """A basic User class."""
-    def __init__(self, nickname):
-        self.user_key = None
-        self.nickname = nickname
-        self.permissions = None
-        self.picture = None
-        self.home = 1
+    def __init__(self, **kwargs):
+        self.user_key = kwargs.get("user_key", None)
+        self.nickname = kwargs.get("nickname", None)
+        self.permissions = kwargs.get("permissions", None)
+        self.picture = kwargs.get("picture", None)
+        self.home = kwargs.get("home", None)
 
     def create(self, db):
         """Create the User in the given database.
@@ -45,6 +91,15 @@ class User:
             cursor.execute("update users set nickname = ? where user_key = ?", [self.nickname, self.user_key])
         except sqlite3.Error as er:
             raise er
+    
+    def add_to_home(self, home_id, password, db):
+        password_correct = Home.check_password(home_id, password, db)
+        if password_correct:
+            cursor = db.cursor()
+            cursor.execute("update users set home = ? where user_key = ?", [home_id, self.user_key])
+            db.commit()
+            return True
+        return False
 
     @staticmethod
     def get(key, db):
@@ -60,7 +115,14 @@ class User:
             user = cursor.fetchone()
 
             if user:
-                return dict(user)
+                user = dict(user)
+                return User(
+                    user_key = user.get("user_key", None),
+                    nickname=user.get("nickname", None),
+                    permissions = user.get("permissions", None),
+                    picture = user.get("picture", None),
+                    home = user.get("home", None)
+                )
             return None
         except sqlite3.Error as er:
             raise er
@@ -82,6 +144,15 @@ class User:
             return None
         except sqlite3.Error as er:
             raise er
+
+    def to_dict(self):
+        return {
+            "user_key": self.user_key,
+            "nickname": self.nickname,
+            "permissions": self.permissions,
+            "picture": self.picture,
+            "home": self.home
+        }
 
 class Rotation:
     def __init__(self, name):
