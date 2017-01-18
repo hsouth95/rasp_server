@@ -121,7 +121,7 @@ def list_users():
         users = User.list(get_db())
 
         if users:
-            return json.dumps(users)
+            return json.dumps([item.__dict__ for item in users])
         return json.dumps([])
     except sqlite3.Error as er:
         return er.message, 500

@@ -1,10 +1,10 @@
 import sqlite3
 
 class Home:
-    def __init__(self, name, password):
-        self.name = name
-        self.password = password
-        self.id = None
+    def __init__(self, **kwargs):
+        self.name = kwargs.get("name", None)
+        self.password = kwargs.get("password", None)
+        self.id = kwargs.get("id", None)
 
     def create(self, db):
         cursor = db.cursor()
@@ -21,8 +21,12 @@ class Home:
         cursor = db.cursor()
         try:
             cursor.execute("select id, name from home")
-            homes = cursor.fetchall()
-            return map(dict, homes)
+            retrieved_homes = map(dict, cursor.fetchall())
+            homes = []
+            for item in retrieved_homes:
+                homes.append(Home(**item))
+            return homes
+            
         except sqlite3.Error:
             raise
     
@@ -31,8 +35,8 @@ class Home:
         cursor = db.cursor()
         try:
             cursor.execute("select id, name from home where id = ?", [key])
-            home = cursor.fetchone()
-            return dict(home)
+            home = dict(cursor.fetchone())
+            return Home(**home)
         except sqlite3.Error:
             raise
     
@@ -112,17 +116,10 @@ class User:
         cursor = db.cursor()
         try:
             cursor.execute("select * from users where user_key = ?", [key])
-            user = cursor.fetchone()
+            user = dict(cursor.fetchone())
 
             if user:
-                user = dict(user)
-                return User(
-                    user_key = user.get("user_key", None),
-                    nickname=user.get("nickname", None),
-                    permissions = user.get("permissions", None),
-                    picture = user.get("picture", None),
-                    home = user.get("home", None)
-                )
+                return User(**user)
             return None
         except sqlite3.Error as er:
             raise er
@@ -137,27 +134,18 @@ class User:
         cursor = db.cursor()
         try:
             cursor.execute("select nickname from users")
-            users = cursor.fetchall()
+            users = map(dict, cursor.fetchall())
 
             if users:
-                return map(dict, users)
+                return [User(**item) for item in users]
             return None
         except sqlite3.Error as er:
             raise er
 
-    def to_dict(self):
-        return {
-            "user_key": self.user_key,
-            "nickname": self.nickname,
-            "permissions": self.permissions,
-            "picture": self.picture,
-            "home": self.home
-        }
-
 class Rotation:
-    def __init__(self, name):
-        self.name = name
-        self.rotation_key = None
+    def __init__(self, **kwargs):
+        self.name = kwargs.get("name", None)
+        self.rotation_key = kwargs.get("rotation_key", None)
     
     def create(self, db):
         # Check if this is the first User being created
@@ -173,7 +161,7 @@ class Rotation:
     def get(key, db):
         cursor = db.cursor()
         rotation = cursor.execute("select * from rotation where rotation_key = ?", [key]).fetchone()
-        return dict(rotation)
+        return Rotation(**dict(rotation))
     
     @staticmethod
     def set_next(key, db):
